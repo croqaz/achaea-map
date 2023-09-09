@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="language" content="english">
+  <meta property="og:locale" content="en_US">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="author" href="https://crlf.link/author/">
+  <meta name="author" content="Cristi Constantin">
+  <meta name="copyright" content="Copyright 2023">
+  <title>Map</title>
+  <style>
+    html, body, div {
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      min-height: 90vh;
+      margin: 0 auto;
+    }
+    #map {
+      margin: 20px;
+      background: #f9f5d7;
+      width: calc(100vw - 40px);
+      height: calc(90vh - 40px);
+    }
+    #controls {
+      position: fixed;
+      margin-top: 20px;
+      margin-left: 20px;
+    }
+    #area {
+      border: 1px solid transparent;
+    }
+    #level {
+      margin-left: 10px;
+      background: #e9e9ed;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls"><select id="area"></select><span id="level">0</span></div>
+  <canvas id="map"></canvas>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.17/paper-full.js"></script>
+  <script src="map.js" defer></script>
+</body>
+</html>

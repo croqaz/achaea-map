@@ -1,6 +1,17 @@
 window.MAP = {};
 window.AREA = {};
 
+const EXITS = {
+  north: 'n',
+  south: 's',
+  east: 'e',
+  west: 'w',
+  northeast: 'ne',
+  northwest: 'nw',
+  southeast: 'se',
+  southwest: 'sw',
+};
+
 window.addEventListener('load', async function () {
   window.MAP = await fetchMap();
   window.LEVEL = 0;
@@ -39,17 +50,17 @@ async function fetchMap() {
   const areaList = [];
   for (const uid of Object.keys(MAP.areas)) {
     let name = MAP.areas[uid].name;
-    let details = name.match(/ \(.+?\)$/);
-    if (details) {
-      details = details[0];
-      name = name.slice(0, -details.length);
-    }
-    let names = name.split(', ');
-    if (names.length >= 2) {
-      names = [names[1], names[0], ...names.slice(2)];
-    }
-    if (details) names.push(details);
-    areaList.push([uid, names.join(' ')]);
+    // let details = name.match(/ \(.+?\)$/);
+    // if (details) {
+    //   details = details[0];
+    //   name = name.slice(0, -details.length);
+    // }
+    // let names = name.split(', ');
+    // if (names.length >= 2) {
+    //   names = [names[1], names[0], ...names.slice(2)];
+    // }
+    // if (details) names.push(details);
+    areaList.push([uid, name]); // names.join(' ')]);
   }
   areaList.sort((a, b) => {
     if (a[1] < b[1]) {
@@ -148,23 +159,57 @@ function drawMap() {
   });
   roomGroup.addChild(roomTitle);
 
-  for (const room of Object.values(area.rooms)) {
-    if (room.coord.z !== window.LEVEL) continue;
-    const p1 = parseInt(room.coord.x) * GRID;
-    const p2 = -parseInt(room.coord.y) * GRID;
+  function drawRoom(p1, p2, room) {
     const c = room.environment.htmlcolor || '#aaa';
-    const title = `#${room.id} -- ${room.environment.name}\n${room.title || room.name}`;
+    let title = `#${room.id} -- ${room.environment.name}\n${room.title || room.name}`;
+    title += `\nExits: ${room.exits.map((x) => EXITS[x.name] || x.name).join(', ')}`;
+    const group = new Group();
 
-    // Draw room
-    const gr1 = new Path.Rectangle({
+    if (room.userData) {
+      if (
+        room.userData['feature-shop'] ||
+        room.userData['feature-commodityshop'] ||
+        room.userData['feature-bank']
+      ) {
+        let content = '$';
+        if (room.userData['feature-commodityshop']) content = 'C';
+        else if (room.userData['feature-bank']) content = 'B';
+        group.addChild(
+          new PointText({
+            content,
+            point: [p1, p2 + FONT / 3],
+            justification: 'center',
+            fillColor: '#000',
+            fontFamily: 'Serif',
+            fontSize: FONT,
+          }),
+        );
+      }
+      if (room.userData['feature-grate']) {
+        group.addChild(
+          new PointText({
+            content: 'G',
+            point: [p1, p2 + FONT / 3],
+            justification: 'center',
+            fillColor: '#000',
+            fontFamily: 'Serif',
+            fontSize: FONT,
+          }),
+        );
+      }
+    }
+
+    const rect = new Path.Rectangle({
       center: [p1, p2],
       size: [GRID / 2, GRID / 2],
       strokeColor: '#1D2021',
       fillColor: c,
-      opacity: 0.75,
+      opacity: 0.7,
       data: { title },
     });
-    gr1.onMouseEnter = function () {
+    group.addChild(rect);
+
+    rect.onMouseEnter = function () {
       this.selected = true;
       const titlePos = this.position.subtract([0, GRID]);
       roomTitle.content = this.data.title;
@@ -173,7 +218,7 @@ function drawMap() {
       // Border around the room info
       titleBorder = new Path.Rectangle({
         center: titlePos,
-        size: [roomTitle.strokeBounds.width + 4, FONT + 4],
+        size: [roomTitle.strokeBounds.width + 4, FONT * 2],
         strokeColor: '#1D2021',
         fillColor: '#EEE',
       });
@@ -181,12 +226,53 @@ function drawMap() {
       // Room info must be on top
       roomTitle.bringToFront();
     };
-    gr1.onMouseLeave = function () {
+    rect.onMouseLeave = function () {
       this.selected = false;
       roomTitle.visible = false;
       titleBorder.remove();
     };
-    roomGroup.addChild(gr1);
+
+    return group;
+  }
+
+  function drawPath(p1, p2, tgt, exit) {
+    let tgtCoord = tgt.coord;
+    if (exit.customLine && exit.customLine.coordinates) {
+      const customCoord = exit.customLine.coordinates[0];
+      tgtCoord = {
+        x: Math.round(customCoord[0]),
+        y: Math.round(customCoord[1]),
+      };
+    }
+    const path = new Path.Line({
+      from: [p1, p2],
+      to: [tgtCoord.x * GRID, -tgtCoord.y * GRID],
+      strokeColor: '#504945',
+      strokeCap: 'round',
+      strokeWidth: 2,
+    });
+
+    if (exit.name === 'in' || exit.name === 'out') {
+      path.dashArray = [2, 6];
+      path.strokeColor = 'red';
+    } else if (exit.name === 'up' || exit.name === 'down') {
+      path.dashArray = [2, 6];
+      path.strokeColor = 'blue';
+    } else if (exit.name === 'worm warp') {
+      path.strokeWidth = 1;
+      path.dashArray = [2, 6];
+      path.strokeColor = '#999';
+    }
+    return path;
+  }
+
+  for (const room of Object.values(area.rooms)) {
+    if (room.coord.z !== window.LEVEL) continue;
+    const p1 = parseInt(room.coord.x) * GRID;
+    const p2 = -parseInt(room.coord.y) * GRID;
+
+    // Draw room
+    roomGroup.addChild(drawRoom(p1, p2, room));
 
     // Draw exits
     if (!room.exits) continue;
@@ -196,15 +282,12 @@ function drawMap() {
         // console.error('Exit not found:', exit);
         continue;
       }
-      pathGroup.addChild(
-        new Path.Line({
-          from: [p1, p2],
-          to: [tgt.coord.x * GRID, -tgt.coord.y * GRID],
-          strokeColor: '#504945',
-          strokeCap: 'round',
-          strokeWidth: 2,
-        }),
-      );
+      if (tgt.coord.z !== window.LEVEL) {
+        // Don't draw paths to other levels
+        continue;
+      }
+      // Draw the path
+      pathGroup.addChild(drawPath(p1, p2, tgt, exit));
     } //--exits
   }
 

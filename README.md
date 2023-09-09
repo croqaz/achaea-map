@@ -13,6 +13,8 @@ Or:
 
 ## Other maps
 
+* https://github.com/IRE-Mudlet-Mapping/AchaeaCrowdmap
+* https://ire-mudlet-mapping.github.io/AchaeaCrowdmap
 * https://achaea.com/game-maps/
 * https://achaea.com/achaea_maps/
 

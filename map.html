@@ -10,6 +10,9 @@
   <meta name="copyright" content="Copyright 2023">
   <title>Map</title>
   <style>
+    *,*::before,*::after {
+      box-sizing: border-box;
+    }
     html, body, div {
       margin: 0;
       padding: 0;
@@ -17,29 +20,52 @@
     body {
       min-height: 90vh;
       margin: 0 auto;
+      font-family: sans-serif;
+      font-size: 14px;
     }
     #map {
-      margin: 20px;
+      margin: 10px;
       background: #CCC;
       width: calc(100vw - 40px);
       height: calc(90vh - 40px);
     }
     #controls {
-      position: fixed;
-      margin-top: 20px;
-      margin-left: 22px;
+      height: 24px;
+      margin-top: 10px;
+      margin-left: 10px;
+    }
+    #source {
+      display: inline-block;
+      background: #e9e9ed;
+      padding: .5rem;
     }
     #area {
+      display: inline-block;
       border: 1px solid transparent;
+      font-family: sans-serif;
+      font-size: 14px;
+      padding: .5rem;
     }
     #level {
-      margin-left: 10px;
-      background: #e9e9ed;
+      display: inline-block;
+      padding: .5rem;
     }
   </style>
 </head>
 <body>
-  <div id="controls"><select id="area"></select><span id="level">0</span></div>
+  <div id="controls">
+    <div id="source">
+      Map source:
+      <input id="radioOfficial" type="radio" name="source" value="official" checked>
+      <label for="radioOfficial">Official</label>
+      <input id="radioCrowd" type="radio" name="source" value="crowd">
+      <label for="radioCrowd">Crowd</label>
+    </div>
+    Area:
+    <select id="area"></select>
+    Level:
+    <span id="level">0</span>
+  </div>
   <canvas id="map"></canvas>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.17/paper-full.js"></script>
   <script src="map.js" defer></script>

@@ -23,6 +23,10 @@
       font-family: sans-serif;
       font-size: 14px;
     }
+    b {
+      font-family: sans-serif;
+      font-size: 15px;
+    }
     #map {
       margin: 10px;
       background: #CCC;
@@ -55,15 +59,15 @@
 <body>
   <div id="controls">
     <div id="source">
-      Map source:
-      <input id="radioOfficial" type="radio" name="source" value="official" checked>
-      <label for="radioOfficial">Official</label>
-      <input id="radioCrowd" type="radio" name="source" value="crowd">
-      <label for="radioCrowd">Crowd</label>
+      <b>Map source:</b>
+      <label for="radioOfficial">
+        <input id="radioOfficial" type="radio" name="source" value="official" checked>Official</label>
+      <label for="radioCrowd">
+        <input id="radioCrowd" type="radio" name="source" value="crowd">Crowd</label>
     </div>
-    Area:
+    <b>Area:</b>
     <select id="area"></select>
-    Level:
+    <b>Level:</b>
     <span id="level">0</span>
   </div>
   <canvas id="map"></canvas>

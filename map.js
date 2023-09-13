@@ -1,5 +1,6 @@
 window.MAP = {};
 window.AREA = {};
+window.LEVEL = 0;
 
 const EXITS = {
   north: 'n',
@@ -12,55 +13,33 @@ const EXITS = {
   southwest: 'sw',
 };
 
-window.addEventListener('load', async function () {
-  window.MAP = await fetchMap();
-  window.LEVEL = 0;
-
-  // Setup Paper.js
-  const canvas = document.getElementById('map');
-  const p = new paper.PaperScope();
-  p.setup(canvas);
-  const tool = new p.Tool();
-  tool.maxDistance = 50;
-  window.PAPER = p;
-
-  canvas.onwheel = function (event) {
-    const scale = Math.round(event.deltaY / 10) / 120;
-    if (scale > 0 && p.view.zoom <= 0.2) return false;
-    if (scale < 0 && p.view.zoom > 5) return false;
-    p.view.scale(1 - parseFloat(scale.toFixed(1)));
-    return false;
-  };
-
-  drawMap();
-});
-
-async function fetchMap() {
-  const res = await fetch('maps/crowd-map.json');
+async function fetchMap(name) {
+  const res = await fetch(`maps/${name}-map.json`);
   const MAP = await res.json();
 
-  let userUid = '11';
+  let areaID = '11';
   // Is there any area ID in the hash?
   if (location.hash.length > 1 && location.hash.startsWith('#')) {
     try {
-      userUid = parseInt(location.hash.slice(1)).toString();
+      areaID = parseInt(location.hash.slice(1)).toString();
     } catch {}
   }
 
   const areaList = [];
   for (const uid of Object.keys(MAP.areas)) {
     let name = MAP.areas[uid].name;
-    // let details = name.match(/ \(.+?\)$/);
-    // if (details) {
-    //   details = details[0];
-    //   name = name.slice(0, -details.length);
-    // }
-    // let names = name.split(', ');
-    // if (names.length >= 2) {
-    //   names = [names[1], names[0], ...names.slice(2)];
-    // }
-    // if (details) names.push(details);
-    areaList.push([uid, name]); // names.join(' ')]);
+    let details = name.match(/ \(.+?\)$/);
+    if (details) {
+      details = details[0];
+      name = name.slice(0, -details.length);
+    }
+    let names = name.split(', ');
+    if (names.length >= 2) {
+      names = [names[1], names[0], ...names.slice(2)];
+    }
+    if (details) names.push(details);
+    name = names.join(' ').replace(/^the /i, '');
+    areaList.push([uid, name]);
   }
   areaList.sort((a, b) => {
     if (a[1] < b[1]) {
@@ -76,7 +55,7 @@ async function fetchMap() {
   const selectArea = document.getElementById('area');
   for (const [uid, name] of areaList) {
     const opt = document.createElement('option');
-    if (uid === userUid) opt.selected = true;
+    if (uid === areaID) opt.selected = true;
     opt.value = uid;
     opt.text = name;
     selectArea.add(opt);
@@ -90,39 +69,76 @@ async function fetchMap() {
   return MAP;
 }
 
-function prepareArea() {
+window.addEventListener('load', async function () {
+  window.OFFICIAL_MAP = await fetchMap('official');
+  window.CROWD_MAP = await fetchMap('crowd');
+  window.MAP = window.OFFICIAL_MAP;
+  window.LEVEL = 0;
+
+  // Setup Paper.js
+  const canvas = document.getElementById('map');
+  const p = new paper.PaperScope();
+  p.setup(canvas);
+  const tool = new p.Tool();
+  tool.maxDistance = 50;
+  window.PAPER = p;
+
+  for (const src of document.querySelectorAll('#source input[name=source]')) {
+    src.onchange = function () {
+      window.LEVEL = 0;
+      drawMap();
+    };
+  }
+
+  canvas.onwheel = function (event) {
+    const scale = Math.round(event.deltaY / 10) / 120;
+    if (scale > 0 && p.view.zoom <= 0.2) return false;
+    if (scale < 0 && p.view.zoom > 5) return false;
+    p.view.scale(1 - parseFloat(scale.toFixed(1)));
+    return false;
+  };
+
+  drawMap();
+});
+
+function prepareArea(source) {
   const UID = document.getElementById('area').value;
   const area = JSON.parse(JSON.stringify(MAP.areas[UID]));
   area.id = UID;
   const levels = new Set();
-  if (area.rooms) {
-    for (const i of Object.keys(area.rooms)) {
-      const room = { ...area.rooms[i] };
-      room.id = i;
-      room.environment = { id: room.environment, ...MAP.environments[room.environment] };
-      area.rooms[i] = room;
-      levels.add(room.coord.z || 0);
+
+  if (source === 'crowd') {
+    // Logic for the crowd map
+    if (area.rooms) {
+      for (const i of Object.keys(area.rooms)) {
+        const room = { ...area.rooms[i] };
+        room.id = i;
+        room.environment = { id: room.environment, ...MAP.environments[room.environment] };
+        area.rooms[i] = room;
+        levels.add(room.coord.z || 0);
+      }
+    }
+  } else {
+    // Logic for the official map
+    area.rooms = {};
+    for (const i of Object.keys(MAP.rooms)) {
+      const room = { ...MAP.rooms[i] };
+      if (room.area === UID) {
+        room.id = i;
+        delete room.area;
+        room.environment = { id: room.environment, ...MAP.environments[room.environment] };
+        area.rooms[i] = room;
+        levels.add(room.coord.z || 0);
+      }
     }
   }
 
-  // Logic for the official map
-  // area.rooms = {};
-  // for (const i of Object.keys(MAP.rooms)) {
-  //   const room = { ...MAP.rooms[i] };
-  //   if (room.area === UID) {
-  //     room.id = i;
-  //     delete room.area;
-  //     room.environment = { id: room.environment, ...MAP.environments[room.environment] };
-  //     area.rooms[i] = room;
-  //     levels.add(room.coord.z || 0);
-  //   }
-  // }
-
   area.levels = Array.from(levels).toSorted((a, b) => a - b);
   // Check no. rooms for this area
+  source = source.toUpperCase();
   const noRooms = Object.keys(area.rooms).length;
-  if (noRooms) console.log('Area:', area.name, 'Rooms:', noRooms);
-  else console.error('Area:', area.name, 'has NO ROOMS!');
+  if (noRooms) console.log(`${source} Area:`, area.name, 'Rooms:', noRooms);
+  else console.error(`${source} Area:`, area.name, 'has NO ROOMS!');
   return area;
 }
 
@@ -134,7 +150,10 @@ function drawLevel() {
 }
 
 function drawMap() {
-  const area = prepareArea();
+  const source = document.querySelector('#source input[name=source]:checked').value;
+  window.MAP = window[`${source.toUpperCase()}_MAP`];
+  const area = prepareArea(source);
+
   const { Group, Layer, Path, PointText, view, tool } = window.PAPER;
   window.PAPER.project.clear();
   window.AREA = area;
@@ -161,8 +180,9 @@ function drawMap() {
 
   function drawRoom(p1, p2, room) {
     const c = room.environment.htmlcolor || '#aaa';
+    const exits = room.exits || [];
     let title = `#${room.id} -- ${room.environment.name}\n${room.title || room.name}`;
-    title += `\nExits: ${room.exits.map((x) => EXITS[x.name] || x.name).join(', ')}`;
+    title += `\nExits: ${exits.map((x) => EXITS[x.name || x.direction] || x.name || x.direction).join(', ')}`;
     const group = new Group();
 
     if (room.userData) {
@@ -252,13 +272,14 @@ function drawMap() {
       strokeWidth: 2,
     });
 
-    if (exit.name === 'in' || exit.name === 'out') {
+    const dir = exit.direction || exit.name;
+    if (dir === 'in' || dir === 'out') {
       path.dashArray = [2, 6];
       path.strokeColor = 'red';
-    } else if (exit.name === 'up' || exit.name === 'down') {
+    } else if (dir === 'up' || dir === 'down') {
       path.dashArray = [2, 6];
       path.strokeColor = 'blue';
-    } else if (exit.name === 'worm warp') {
+    } else if (dir === 'worm warp') {
       path.strokeWidth = 1;
       path.dashArray = [2, 6];
       path.strokeColor = '#999';

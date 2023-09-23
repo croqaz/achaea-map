@@ -182,7 +182,7 @@ function drawMap() {
 
   function drawRoom(p1, p2, room) {
     const c = room.environment.htmlcolor || '#aaa';
-    const exits = room.exits.map((x) => EXITS[x.name || x.direction] || x.name || x.direction) || [];
+    const exits = (room.exits || []).map((x) => EXITS[x.name || x.direction] || x.name || x.direction);
     let title = `#${room.id} -- ${room.environment.name}\n${room.title || room.name}`;
     title += `\nExits: ${exits.join(', ')}`;
     const group = new Group();
@@ -229,13 +229,13 @@ function drawMap() {
         content = '⬍';
       } else if (exits.includes('in') && exits.includes('out')) {
         content = '⬌';
-      }  else if (exits.includes('u')) {
+      } else if (exits.includes('u')) {
         content = '▲';
       } else if (exits.includes('d')) {
         content = '▼';
       } else if (exits.includes('in')) {
         content = '❮';
-      }  else if (exits.includes('out')) {
+      } else if (exits.includes('out')) {
         content = '❯';
       }
       if (content) {
@@ -250,11 +250,6 @@ function drawMap() {
           }),
         );
       }
-      // up ▲
-      // down ▼
-      // in ❮
-      // out ❯
-      // all ✦
     }
 
     const rect = new Path.Rectangle({
@@ -294,7 +289,13 @@ function drawMap() {
   }
 
   function drawPath(p1, p2, tgt, exit) {
-    let tgtCoord = tgt.coord;
+    const D = 24;
+    // Current level
+    const L = tgt ? tgt.coord.z : NaN;
+    // Short exit names
+    const dir = EXITS[exit.name || exit.direction] || exit.name || exit.direction;
+
+    let tgtCoord = tgt ? tgt.coord : { x: p1, y: p2 - D };
     if (exit.customLine && exit.customLine.coordinates) {
       const customCoord = exit.customLine.coordinates[0];
       tgtCoord = {
@@ -302,19 +303,36 @@ function drawMap() {
         y: Math.round(customCoord[1]),
       };
     }
+
+    // Hack to fix the broken coords to other levels in the same Area
+    let toPoint = [tgtCoord.x * GRID, -tgtCoord.y * GRID];
+    if (L !== window.LEVEL) {
+      if (dir === 'w' || dir === 'in') toPoint = [p1 - D, p2];
+      else if (dir === 'e' || dir === 'out') toPoint = [p1 + D, p2];
+      else if (dir === 's' || dir === 'd') toPoint = [p1, p2 + D];
+      else if (dir === 'n' || dir === 'u') toPoint = [p1, p2 - D];
+      else if (dir === 'se') toPoint = [p1 + D, p2 + D];
+      else if (dir === 'se') toPoint = [p1 + D, p2 + D];
+      else if (dir === 'sw') toPoint = [p1 - D, p2 + D];
+      else if (dir === 'ne') toPoint = [p1 + D, p2 - D];
+      else if (dir === 'nw') toPoint = [p1 - D, p2 - D];
+    }
+
     const path = new Path.Line({
       from: [p1, p2],
-      to: [tgtCoord.x * GRID, -tgtCoord.y * GRID],
+      to: toPoint,
       strokeColor: '#504945',
       strokeCap: 'round',
       strokeWidth: 2,
     });
 
-    const dir = exit.direction || exit.name;
-    if (dir === 'in' || dir === 'out') {
+    if (L !== window.LEVEL) {
+      path.dashArray = [2, 4];
+      path.strokeColor = '#888';
+    } else if (dir === 'in' || dir === 'out') {
       path.dashArray = [2, 6];
       path.strokeColor = 'red';
-    } else if (dir === 'up' || dir === 'down') {
+    } else if (dir === 'u' || dir === 'd') {
       path.dashArray = [2, 6];
       path.strokeColor = 'blue';
     } else if (dir === 'worm warp') {
@@ -330,24 +348,16 @@ function drawMap() {
     const p1 = parseInt(room.coord.x) * GRID;
     const p2 = -parseInt(room.coord.y) * GRID;
 
-    // Draw room
+    // Draw the room
     roomGroup.addChild(drawRoom(p1, p2, room));
 
     // Draw exits
     if (!room.exits) continue;
     for (const exit of room.exits) {
       const tgt = area.rooms[exit.target || exit.exitId];
-      if (!tgt) {
-        // console.error('Exit not found:', exit);
-        continue;
-      }
-      if (tgt.coord.z !== window.LEVEL) {
-        // Don't draw paths to other levels
-        continue;
-      }
       // Draw the path
       pathGroup.addChild(drawPath(p1, p2, tgt, exit));
-    } //--exits
+    }
   }
 
   const topCenter = roomGroup.bounds.topCenter;

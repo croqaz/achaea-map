@@ -11,6 +11,8 @@ const EXITS = {
   northwest: 'nw',
   southeast: 'se',
   southwest: 'sw',
+  up: 'u',
+  down: 'd',
 };
 
 async function fetchMap(name) {
@@ -180,11 +182,12 @@ function drawMap() {
 
   function drawRoom(p1, p2, room) {
     const c = room.environment.htmlcolor || '#aaa';
-    const exits = room.exits || [];
+    const exits = room.exits.map((x) => EXITS[x.name || x.direction] || x.name || x.direction) || [];
     let title = `#${room.id} -- ${room.environment.name}\n${room.title || room.name}`;
-    title += `\nExits: ${exits.map((x) => EXITS[x.name || x.direction] || x.name || x.direction).join(', ')}`;
+    title += `\nExits: ${exits.join(', ')}`;
     const group = new Group();
 
+    // Crowd map
     if (room.userData) {
       if (
         room.userData['feature-shop'] ||
@@ -217,6 +220,41 @@ function drawMap() {
           }),
         );
       }
+    } // The offficial map doesn't have shops & banks
+    else {
+      let content = '';
+      if (exits.includes('u') && exits.includes('d') && exits.includes('in') && exits.includes('out')) {
+        content = '✦';
+      } else if (exits.includes('u') && exits.includes('d')) {
+        content = '⬍';
+      } else if (exits.includes('in') && exits.includes('out')) {
+        content = '⬌';
+      }  else if (exits.includes('u')) {
+        content = '▲';
+      } else if (exits.includes('d')) {
+        content = '▼';
+      } else if (exits.includes('in')) {
+        content = '❮';
+      }  else if (exits.includes('out')) {
+        content = '❯';
+      }
+      if (content) {
+        group.addChild(
+          new PointText({
+            content,
+            point: [p1, p2 + FONT / 3],
+            justification: 'center',
+            fillColor: '#000',
+            fontFamily: 'Serif',
+            fontSize: FONT,
+          }),
+        );
+      }
+      // up ▲
+      // down ▼
+      // in ❮
+      // out ❯
+      // all ✦
     }
 
     const rect = new Path.Rectangle({

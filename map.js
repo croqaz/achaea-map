@@ -55,6 +55,7 @@ async function fetchMap(name) {
 
   // Populate areas list
   const selectArea = document.getElementById('area');
+  selectArea.innerHTML = '';
   for (const [uid, name] of areaList) {
     const opt = document.createElement('option');
     if (uid === areaID) opt.selected = true;
@@ -72,8 +73,8 @@ async function fetchMap(name) {
 }
 
 window.addEventListener('load', async function () {
-  window.OFFICIAL_MAP = await fetchMap('official');
   window.CROWD_MAP = await fetchMap('crowd');
+  window.OFFICIAL_MAP = await fetchMap('official');
   window.MAP = window.OFFICIAL_MAP;
   window.LEVEL = 0;
 
@@ -105,6 +106,11 @@ window.addEventListener('load', async function () {
 
 function prepareArea(source) {
   const UID = document.getElementById('area').value;
+  if (!MAP.areas[UID]) {
+    console.warn(`Area ${UID} doesn't exist on the map!`)
+    return
+  }
+
   const area = JSON.parse(JSON.stringify(MAP.areas[UID]));
   area.id = UID;
   const levels = new Set();
@@ -294,6 +300,11 @@ function drawMap() {
     const L = tgt ? tgt.coord.z : NaN;
     // Short exit names
     const dir = EXITS[exit.name || exit.direction] || exit.name || exit.direction;
+
+    // Not sure ...
+    if (!tgt && L !== window.LEVEL) {
+      return;
+    }
 
     let tgtCoord = tgt ? tgt.coord : { x: p1, y: p2 - D };
     if (exit.customLine && exit.customLine.coordinates) {
